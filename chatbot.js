@@ -10,54 +10,64 @@ document.getElementById('toggle-frame').addEventListener('click', () => {
     document.getElementById('toggle-frame').textContent = buttonText;
 });
 
+let recordingText = document.getElementById('recording-status');
+
 document.getElementById('start-recording').addEventListener('click', async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorder = new MediaRecorder(stream);
 
-    mediaRecorder.start();
-    document.getElementById('start-recording').disabled = true;
-    document.getElementById('stop-recording').disabled = false;
-    console.log("Starting recording...");
+  mediaRecorder.start();
+  document.getElementById('start-recording').disabled = true;
+  document.getElementById('stop-recording').disabled = false;
+  
+  // Show recording status
+  recordingText.style.display = 'block'; // Show the recording status
 
-    mediaRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-    };
+  console.log("Starting recording...");
 
-    mediaRecorder.onstop = async () => {
-        console.log("Recording stopped.");
-        const audioBlob = new Blob(audioChunks);
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'audio.wav');
-        formData.append('model', 'base');
+  mediaRecorder.ondataavailable = event => {
+      audioChunks.push(event.data);
+  };
 
-        try {
-            const response = await fetch('https://api.mesolitica.com/audio/transcriptions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: formData
-            });
+  mediaRecorder.onstop = async () => {
+      console.log("Recording stopped.");
+      recordingText.style.display = 'none';
+      const audioBlob = new Blob(audioChunks);
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'audio.wav');
+      formData.append('model', 'base');
 
-            console.log("Transcription response:", response);
+      try {
+          const response = await fetch('https://api.mesolitica.com/audio/transcriptions', {
+              method: 'POST',
+              headers: {
+                  'Authorization': `Bearer ${apiKey}`
+              },
+              body: formData
+          });
 
-            if (!response.ok) throw new Error('Error transcribing audio: ' + response.statusText);
-            const transcription = await response.json();
-            console.log("Transcription result:", transcription);
+          console.log("Transcription response:", response);
 
-            appendMessage('You: ' + transcription);
-            await sendMessageToBot(transcription); // Send transcription to bot
+          if (!response.ok) throw new Error('Error transcribing audio: ' + response.statusText);
+          const transcription = await response.json();
+          console.log("Transcription result:", transcription);
 
-        } catch (error) {
-            console.error(error);
-            appendMessage('Error: ' + error.message);
-        }
+          appendMessage('You: ' + transcription);
+          await sendMessageToBot(transcription); // Send transcription to bot
 
-        audioChunks.length = 0; // Clear the audio chunks for the next recording
-        document.getElementById('start-recording').disabled = false;
-        document.getElementById('stop-recording').disabled = true;
-    };
+      } catch (error) {
+          console.error(error);
+          appendMessage('Error: ' + error.message);
+      }
+
+      audioChunks.length = 0; // Clear the audio chunks for the next recording
+      document.getElementById('start-recording').disabled = false;
+      document.getElementById('stop-recording').disabled = true;
+
+      
+  };
 });
+
 
 document.getElementById('clear-chat').addEventListener('click', () => {
     const outputDiv = document.getElementById('chat-output');
