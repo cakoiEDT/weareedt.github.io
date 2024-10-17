@@ -1,7 +1,8 @@
 let mediaRecorder;
 const audioChunks = [];
-const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IndlYXJlZWR0QGdtYWlsLmNvbSIsInV1aWQiOiJlMTZiOGQ1Ny1jZDZmLTRkMTgtYmI1Mi00MWU1M2Y1ZjEzNDAifQ.qoFhT-sOQ96BU5tLXq2LExLDk5-Ab11VBy0fdCfFbgA'; // Replace with your actual API key
-const chatApiUrl = 'https://api.mesolitica.com/chat/completions';
+const apiKey = 'api_key';
+const chatApiUrl = 'https://api.openai.com/v1/chat/completions';
+const transcriptionApiUrl = 'https://api.openai.com/v1/audio/transcriptions';
 
 document.getElementById('toggle-frame').addEventListener('click', () => {
     const chatContent = document.getElementById('chat-content');
@@ -21,7 +22,7 @@ document.getElementById('start-recording').addEventListener('click', async () =>
   document.getElementById('stop-recording').disabled = false;
   
   // Show recording status
-  recordingText.style.display = 'block'; // Show the recording status
+  recordingText.style.display = 'block';
 
   console.log("Starting recording...");
 
@@ -32,13 +33,13 @@ document.getElementById('start-recording').addEventListener('click', async () =>
   mediaRecorder.onstop = async () => {
       console.log("Recording stopped.");
       recordingText.style.display = 'none';
-      const audioBlob = new Blob(audioChunks);
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
       const formData = new FormData();
       formData.append('file', audioBlob, 'audio.wav');
-      formData.append('model', 'base');
+      formData.append('model', 'whisper-1'); // Use the Whisper model for transcription
 
       try {
-          const response = await fetch('https://api.mesolitica.com/audio/transcriptions', {
+          const response = await fetch(transcriptionApiUrl, {
               method: 'POST',
               headers: {
                   'Authorization': `Bearer ${apiKey}`
@@ -50,24 +51,21 @@ document.getElementById('start-recording').addEventListener('click', async () =>
 
           if (!response.ok) throw new Error('Error transcribing audio: ' + response.statusText);
           const transcription = await response.json();
-          console.log("Transcription result:", transcription);
+          console.log("Transcription result:", transcription.text);
 
-          appendMessage('You: ' + transcription);
-          await sendMessageToBot(transcription); // Send transcription to bot
+          appendMessage('You: ' + transcription.text);
+          await sendMessageToBot(transcription.text); // Send transcription to bot
 
       } catch (error) {
           console.error(error);
           appendMessage('Error: ' + error.message);
       }
 
-      audioChunks.length = 0; // Clear the audio chunks for the next recording
+      audioChunks.length = 0;
       document.getElementById('start-recording').disabled = false;
       document.getElementById('stop-recording').disabled = true;
-
-      
   };
 });
-
 
 document.getElementById('clear-chat').addEventListener('click', () => {
     const outputDiv = document.getElementById('chat-output');
@@ -87,7 +85,7 @@ document.getElementById('send-message').addEventListener('click', async () => {
 
 async function sendMessageToBot(message) {
     const chatData = {
-        model: "mallam-small",
+        model: "gpt-3.5-turbo", // Specify the OpenAI model
         messages: [
             { role: "user", content: message }
         ]
